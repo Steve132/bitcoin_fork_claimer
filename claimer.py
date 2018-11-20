@@ -614,6 +614,7 @@ class BitcoinFork(object):
         self.maketx = self.maketx_segwitsig
         self.extrabytes = ""
         self.BCDgarbage = ""
+        self.BCLsalt = ""
         self.txversion = 1
         self.signtype = 0x01
         self.signid = self.signtype
@@ -641,7 +642,11 @@ class BitcoinFork(object):
         locktime = struct.pack("<I", 0)
         sigtype = struct.pack("<I", self.signid)
         
-        to_sign = version + self.BCDgarbage + doublesha(prevout) + doublesha(sequence) + prevout + inscript + satoshis + sequence + doublesha(txouts) + locktime + sigtype + self.extrabytes
+        prevouthash = doublesha(prevout)
+        sequencehash = doublesha(sequence)
+        txoutshash = doublesha(txouts)
+        
+        to_sign = version + self.BCDgarbage + self.BCLsalt + prevouthash + sequencehash + prevout + inscript + satoshis + sequence + txoutshash + locktime + sigtype + self.extrabytes
         
         signature = signdata(sourceprivkey, to_sign) + make_varint(self.signtype)
         serpubkey = serializepubkey(pubkey, compressed)
@@ -796,6 +801,7 @@ class UnitedBitcoin(BitcoinFork):
         self.versionno = 731800
         self.extrabytes = "\x02ub"
 
+# https://github.com/superbitcoin/SuperBitcoin
 class SuperBitcoin(BitcoinFork):
     def __init__(self):
         BitcoinFork.__init__(self)
@@ -809,6 +815,7 @@ class SuperBitcoin(BitcoinFork):
         self.signid = self.signtype
         self.maketx = self.maketx_basicsig # does not use new-style segwit signing for standard transactions
         self.extrabytes = lengthprefixed("sbtc")
+        self.versionno = 70017
         
 class BitcoinDiamond(BitcoinFork):
     def __init__(self):
@@ -918,10 +925,13 @@ class BitcoinPay(BitcoinFork):
         self.ticker = "BTP"
         self.fullname = "Bitcoin Pay"
         self.hardforkheight = 499345
+        self.magic = 0xd9c1d0fe
+        self.port = 8380
+        self.seeds = ("seed.btceasypay.com",)
         self.signtype = 0x41
         self.signid = self.signtype | (80 << 8)
         self.PUBKEY_ADDRESS = chr(0x38)
-        self.SCRIPT_ADDRESS = chr(5) # NOT CERTAIN
+        self.SCRIPT_ADDRESS = chr(0x3a)
         self.coinratio = 10.0
 
 # https://github.com/btcking/btcking
@@ -1024,8 +1034,7 @@ class BitcoinPrivate(BitcoinFork):
         self.hardforkheight = 511346
         self.magic = 0xcda2eaa8
         self.port = 7933
-        # removed dnsseed.btcprivate.org until more clients have upgraded to version 1.0.11 which supports segwit
-        self.seeds = ("157.52.27.131", "35.192.186.138", "35.229.218.234")
+        self.seeds = ("dnsseed.btcprivate.co",)
         self.signtype = 0x41
         self.signid = self.signtype | (42 << 8)
         self.PUBKEY_ADDRESS = "\x13\x25"
@@ -1053,22 +1062,23 @@ class BitcoinAtom(BitcoinFork):
         self.PUBKEY_ADDRESS = chr(23)
         self.SCRIPT_ADDRESS = chr(10)
 
-# no source code yet - shame!
+# https://github.com/lbtcio/lbtc-core
 class LightningBitcoin(BitcoinFork):
     def __init__(self):
         BitcoinFork.__init__(self)
         self.ticker = "LBTC"
         self.fullname = "Lightning Bitcoin"
         self.hardforkheight = 499999
-        self.magic = 0xd7b3bef9
+        self.magic = 0xd5b3bef9
         self.port = 9333
-        self.seeds = ("seed7.lbtc.io", "seed8.lbtc.io", "seed9.lbtc.io", "seed10.lbtc.io")
+        self.seeds = ("seed1.lbtc.io", "seed2.lbtc.io", "seed3.lbtc.io", "seed4.lbtc.io", "seed5.lbtc.io", "seed6.lbtc.io", "seed7.lbtc.io", "seed8.lbtc.io", "seed9.lbtc.io", "seed10.lbtc.io")
         self.signtype = 0x01
         self.signid = self.signtype
         self.PUBKEY_ADDRESS = chr(0)
         self.SCRIPT_ADDRESS = chr(5)
-        self.txversion = 0xff01
+        self.txversion = 0xff02             # https://github.com/lbtcio/lbtc-core/blob/bdf916128dd6f60340e5f3404cab2f7836c0b2f4/src/primitives/transaction.h#L307
         self.maketx = self.maketx_basicsig
+        self.extrabytes = lengthprefixed("LBTC")
 
 # https://github.com/bitunity/BitClassicCoin-BICC
 class BitcoinClassicCoin(BitcoinFork):
@@ -1094,8 +1104,8 @@ class BitcoinInterest(BitcoinFork):
         self.fullname = "Bitcoin Interest"
         self.hardforkheight = 505083
         self.magic = 0x26fee4ed
-        self.port = 8331
-        self.seeds = ("seeder1.bci-server.com", "seeder2.bci-server.com", "seeder3.bci-server.com", "74.208.166.57", "216.250.117.221")
+        self.port = 8334
+        self.seeds = ("seeder1.bci-server.com", "seeder2.bci-server.com", "seeder3.bci-server.com", "37.16.104.241")
         self.signtype = 0x41
         self.signid = self.signtype | (79 << 8)
         self.PUBKEY_ADDRESS = chr(102)
@@ -1193,8 +1203,9 @@ class BitcoinClean(BitcoinFork):
         self.port = 8338
         self.seeds = ("seed.bitcoinclean.org",)
         self.maketx = self.maketx_basicsig
-        self.signtype = 0x01
+        self.signtype = 0x41
         self.signid = self.signtype
+        self.BCLsalt = "c003700e0c31442382638363c1c7c19fc59f6f9fffcc7e4ebe67fc37781de007".decode("hex")
         
 # https://github.com/bitcoin-cored/bitcoin-cored
 class BitcoinCore(BitcoinFork):
@@ -1229,6 +1240,23 @@ class BitcoinFile(BitcoinFork):
         self.BCDgarbage = struct.pack("<I", self.txversion)
         self.coinratio = 1000.0
         
+# https://github.com/MicroBitcoinOrg/MicroBitcoin
+class MicroBitcoin(BitcoinFork):
+    def __init__(self):
+        BitcoinFork.__init__(self)
+        self.ticker = "MBC"
+        self.fullname = "Micro Bitcoin"
+        self.hardforkheight = 525001
+        self.magic = 0x7643424d
+        self.port = 6403
+        self.seeds = ("52.76.239.17", "52.220.61.181", "54.169.196.33", "13.228.235.197", "35.176.181.187", "35.177.156.222", "52.53.211.109", "13.57.248.201")
+        self.maketx = self.maketx_basicsig
+        self.signtype = 0x01 | 0x60
+        self.signid = self.signtype
+        self.coinratio = 10000.0
+        self.PUBKEY_ADDRESS = chr(26)
+        self.SCRIPT_ADDRESS = chr(51)
+
 assert gen_k_rfc6979(0xc9afa9d845ba75166b5c215767b1d6934e50c3db36e89b127b8a622b120f6721, "sample") == 0xa6e3c57dd01abe90086538398355dd4c3b17aa873382b0f24d6129493d8aad60
 
 def get_all_coins():
@@ -1272,8 +1300,10 @@ def generate_signed_claim(coin,cointicker,txid,wifkey,srcaddr,destaddr,height,tx
     else:
         raise Exception("Not implemented!")
 
-    if coin.bch_fork and keytype not in ("p2pk", "standard"):
-        raise Exception("Segwit is not enabled for BCH and its forks!")
+if keytype == "p2pk":
+    signscript = srcscript
+else:
+    signscript = "\x76\xa9\x14" + sourceh160 + "\x88\xac"
 
     if keytype == "p2pk":
         signscript = srcscript
@@ -1283,58 +1313,28 @@ def generate_signed_claim(coin,cointicker,txid,wifkey,srcaddr,destaddr,height,tx
     if txindex is not None and satoshis is not None:
         txindex, satoshis = txindex, satoshis
     else:
-        if cointicker == "BTX":
-            txid, txindex, bciscript, satoshis = get_btx_details_from_chainz_cryptoid(srcaddr)
-        elif coin.electrum_server:
-            txid, txindex, bciscript, satoshis = get_coin_details_from_electrum(coin, txid, sourceh160, keytype)
-        elif cointicker == "CDY":
-            raise Exception("Block explorer for BCH forks not supported yet. Please specify txindex and satoshis manually.")
-        elif cointicker == "BCBC":
-            raise Exception("Bitcoin@CBC is not a true fork and therefore does not work with blockchain.info mode. Please use http://be.cleanblockchain.org and specify txindex and satoshis manually.")
-        else:
-            txindex, bciscript, satoshis = get_tx_details_from_blockchaininfo(txid, srcaddr, coin.hardforkheight)
+        destaddr, amount = output.split(":")
+        amount = int(amount)
+        if amount > remaining:
+            raise Exception("Specified satoshis amount exceeds remaining balance")
         
-        if bciscript is not None and bciscript != srcscript:
-            raise Exception("Script type in source output that is not supported!")
-
-    # I misunderstood the WBTC dev implementation of 100:1 fork ratio - gotta multiply by 100 here to claim all coins that existed pre-fork
-    if cointicker == "WBTC" and not no_wtc_conv:
-        satoshis *= 100
-        
-    remaining = satoshis - fee
-    if remaining <= 0:
-        print "The specified amount of satoshis specified is smaller than or equal to the fee."
-        print "Note that the '--satoshis' parameter needs to be the TOTAL amount available in the source transaction."
-        print "If you want a custom fee, use '--fee'."
-        raise Exception("No coins remaining to place in outputs")
-        
-    outputs = []
-    for output in destaddr.split(","):
-        if ":" not in output:
-            destaddr, amount = output, None
+    if destaddr.startswith("bc1"):
+        rawaddr = bech32decode(destaddr)
+        assert len(rawaddr) == 20
+        print "YOU ARE TRYING TO SEND TO A bech32 ADDRESS! THIS IS NOT NORMAL! Are you sure you know what you're doing?"
+        get_consent("I am aware that the destination address is bech32")
+        outscript = "\x00\x14" + rawaddr
+    else:
+        rawaddr = b58decode(destaddr)
+        assert len(rawaddr) in (21, coin.address_size)
+        if rawaddr[0] == "\x00" or rawaddr.startswith(coin.PUBKEY_ADDRESS):
+            outscript = "\x76\xa9\x14" + rawaddr[-20:] + "\x88\xac"
+        elif rawaddr[0] == "\x05" or rawaddr.startswith(coin.SCRIPT_ADDRESS):
+            print "YOU ARE TRYING TO SEND TO A P2SH ADDRESS! THIS IS NOT NORMAL! Are you sure you know what you're doing?"
+            get_consent("I am aware that the destination address is P2SH")
+            outscript = "\xa9\x14" + rawaddr[-20:] + "\x87"
         else:
-            destaddr, amount = output.split(":")
-            amount = int(amount)
-            if amount > remaining:
-                raise Exception("Specified satoshis amount exceeds remaining balance")
-            
-        if destaddr.startswith("bc1"):
-            rawaddr = bech32decode(destaddr)
-            assert len(rawaddr) == 20
-            print "YOU ARE TRYING TO SEND TO A bech32 ADDRESS! THIS IS NOT NORMAL! Are you sure you know what you're doing?"
-            get_consent("I am aware that the destination address is bech32")
-            outscript = "\x00\x14" + rawaddr
-        else:
-            rawaddr = b58decode(destaddr)
-            assert len(rawaddr) in (21, coin.address_size)
-            if rawaddr[0] == "\x00" or rawaddr.startswith(coin.PUBKEY_ADDRESS):
-                outscript = "\x76\xa9\x14" + rawaddr[-20:] + "\x88\xac"
-            elif rawaddr[0] == "\x05" or rawaddr.startswith(coin.SCRIPT_ADDRESS):
-                print "YOU ARE TRYING TO SEND TO A P2SH ADDRESS! THIS IS NOT NORMAL! Are you sure you know what you're doing?"
-                get_consent("I am aware that the destination address is P2SH")
-                outscript = "\xa9\x14" + rawaddr[-20:] + "\x87"
-            else:
-                raise Exception("The destination address %s does not match BTC or %s. Are you sure you got the right one?" % (destaddr, coin.ticker))
+            raise Exception("The destination address %s does not match BTC or %s. Are you sure you got the right one?" % (destaddr, coin.ticker))
 
         outputs.append((outscript, amount, destaddr, rawaddr))
         if amount is not None:
@@ -1395,6 +1395,8 @@ def verify_amounts(coin,satoshis,outputs,tx,destaddr,fee):
         if destaddr != testaddr or outscript not in tx:
             raise Exception("Corrupted destination address! Check your RAM!")
 
+print "generated transaction", txhash[::-1].encode("hex")
+print "\n\nConnecting to servers and pushing transaction\nPlease wait for a minute before stopping the script to see if it entered the server mempool.\n\n"
 
 def broadcast_claim(coin,txhash,tx,fee,force=False):
     if not force:
